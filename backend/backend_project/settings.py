@@ -4,6 +4,7 @@ Django settings for backend_project project.
 import os
 from pathlib import Path
 from datetime import timedelta
+import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -36,6 +37,7 @@ INSTALLED_APPS = [
     'users',
     'sessions_app',
     'bookings',
+    'payments',
 ]
 
 AUTH_USER_MODEL = 'users.User'
@@ -74,14 +76,10 @@ TEMPLATES = [
 WSGI_APPLICATION = 'backend_project.wsgi.application'
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('POSTGRES_DB'),
-        'USER': os.environ.get('POSTGRES_USER'),
-        'PASSWORD': os.environ.get('POSTGRES_PASSWORD'),
-        'HOST': os.environ.get('POSTGRES_HOST', 'db'),
-        'PORT': '5432',
-    }
+    'default': dj_database_url.config(
+        default=f'sqlite:///{BASE_DIR / "db.sqlite3"}',
+        conn_max_age=600
+    )
 }
 
 AUTH_PASSWORD_VALIDATORS = [
