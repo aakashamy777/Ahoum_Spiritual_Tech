@@ -22,9 +22,24 @@ class GoogleAuthView(APIView):
     
     @method_decorator(ratelimit(key='ip', rate='5/m', block=True))
     def post(self, request):
-        token = request.data.get('access_token')
-        if not token:
-            return Response({'error': 'No access token provided'}, status=status.HTTP_400_BAD_REQUEST)
+        code = request.data.get('code')
+        redirect_uri = request.data.get('redirect_uri')
+        if not code:
+            return Response({'error': 'No code provided'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        token_url = "https://oauth2.googleapis.com/token"
+        data = {
+            'code': code,
+            'client_id': os.environ.get('GOOGLE_CLIENT_ID', ''),
+            'client_secret': os.environ.get('GOOGLE_CLIENT_SECRET', ''),
+            'redirect_uri': redirect_uri,
+            'grant_type': 'authorization_code'
+        }
+        res = requests.post(token_url, data=data)
+        if res.status_code != 200:
+            return Response({'error': 'Failed to exchange code for token', 'details': res.json()}, status=status.HTTP_400_BAD_REQUEST)
+        
+        token = res.json().get('access_token')
         
         # Verify token with Google
         response = requests.get(f'https://www.googleapis.com/oauth2/v3/userinfo?access_token={token}')
@@ -55,9 +70,24 @@ class GithubAuthView(APIView):
     
     @method_decorator(ratelimit(key='ip', rate='5/m', block=True))
     def post(self, request):
-        token = request.data.get('access_token')
+        code = request.data.get('code')
+        if not code:
+            return Response({'error': 'No code provided'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        token_url = "https://github.com/login/oauth/access_token"
+        data = {
+            'client_id': os.environ.get('GITHUB_CLIENT_ID', ''),
+            'client_secret': os.environ.get('GITHUB_CLIENT_SECRET', ''),
+            'code': code
+        }
+        headers = {'Accept': 'application/json'}
+        res = requests.post(token_url, data=data, headers=headers)
+        if res.status_code != 200:
+            return Response({'error': 'Failed to exchange code'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        token = res.json().get('access_token')
         if not token:
-            return Response({'error': 'No access token provided'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Failed to get access token from Github', 'details': res.json()}, status=status.HTTP_400_BAD_REQUEST)
             
         headers = {'Authorization': f'token {token}'}
         response = requests.get('https://api.github.com/user', headers=headers)
